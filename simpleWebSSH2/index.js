@@ -54,8 +54,8 @@ io.on('connection', function (socket) {
         socket.emit('data', '\r\n*** SSH CONNECTION ERROR: ' + err.message + ' ***\r\n');
     }).connect({
         host: '127.0.0.1',
-        username: 'kawa90',
-        password: 'k9025247'
+        username: 'hoge',
+        password: 'pass'
     });
 });
 
