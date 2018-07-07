@@ -1,0 +1,113 @@
+<html>
+
+<head>
+  <title>SSH Terminal</title>
+  <link rel="stylesheet" href="node_modules/xterm/lib/xterm.css" />
+  <style>
+    body {
+      font-family: helvetica, sans-serif, arial;
+      font-size: 1em;
+      color: #111;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    #terminal-container {
+      width: 960px;
+      height: 600px;
+      margin: 0 auto;
+      padding: 2px;
+    }
+
+    #terminal-container .terminal {
+      background-color: #111;
+      color: #fafafa;
+      padding: 2px;
+    }
+
+    #terminal-container .terminal:focus .terminal-cursor {
+      background-color: #fafafa;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="terminal-container"></div>
+  <dialog id="account">
+    <form method="dialog" name="SSH_Connection_Form">
+      <p>
+        <label>Host :
+          <input type="text" name="host">
+        </label>
+      </p>
+      <p>
+        <label>User Name:
+          <input type="text" name="username">
+        </label>
+      </p>
+      <p>
+        <label>Password :
+          <input type="password" name="password">
+        </label>
+      </p>
+      <menu>
+        <button id="cancel" type="reset">Cancel</button>
+        <button id="submit" type="submit">Confirm</button>
+      </menu>
+    </form>
+  </dialog>
+  <script>
+    const electron = require('electron');
+    const ipc = electron.ipcRenderer;
+    const path = require('path');
+    var Terminal = require('xterm').Terminal;
+    fit = require(path.join(require.resolve('xterm'), '../addons/fit/fit'));
+    var terminalContainer;
+    var term = new Terminal({ cursorBlink: true });
+    window.addEventListener('load', function () {
+      terminalContainer = document.getElementById('terminal-container');
+      Terminal.applyAddon(fit);
+      term.open(terminalContainer);
+      term.fit();
+      term.write('日本語');
+
+      var submitButton = document.getElementById('submit');
+      var cancelButton = document.getElementById('cancel');
+      var accountDialog = document.getElementById('account');
+
+      accountDialog.showModal();
+
+      // Form cancel button closes the dialog box
+      cancelButton.addEventListener('click', function () {
+        accountDialog.close();
+      });
+      submitButton.addEventListener('click', function () {
+        accountDialog.close();
+        ipc.send('connection', {
+          username: document.forms.SSH_Connection_Form.username.value,
+          password: document.forms.SSH_Connection_Form.password.value,
+          host: document.forms.SSH_Connection_Form.host.value
+        });
+      });
+      document.forms.SSH_Connection_Form.username.value = "";
+      document.forms.SSH_Connection_Form.password.value = "";
+      document.forms.SSH_Connection_Form.host.value = "";
+
+    }, false);
+    // Browser -> Backend
+    term.on('data', function (data) {
+      console.log('terminal:' + data);
+      ipc.send('data', data);
+    });
+
+    // Backend -> Browser
+    ipc.on('data', function (event, data) {
+      console.log('Data:', data);
+      term.write(data);
+    });
+  </script>
+</body>
+
+</html>
