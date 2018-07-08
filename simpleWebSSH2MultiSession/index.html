@@ -1,0 +1,136 @@
+<html>
+
+<head>
+  <title>SSH Terminal</title>
+  <link rel="stylesheet" href="/xterm.css" />
+  <script src="/xterm.js"></script>
+  <script src="/addons/fit/fit.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+
+  </script>
+  <style>
+    body {
+      font-family: helvetica, sans-serif, arial;
+      font-size: 1em;
+      color: #111;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    div.terminal-container {
+      position: absolute;
+      width: 960px;
+      height: 600px;
+      margin: 0 auto;
+      padding: 2px;
+    }
+
+    div.terminal-container .terminal {
+      background-color: #111;
+      color: #fafafa;
+      padding: 2px;
+    }
+
+    div.terminal-container .terminal:focus .terminal-cursor {
+      background-color: #fafafa;
+    }
+  </style>
+</head>
+
+<body>
+  <menu>
+    <input type="button" id="createSseeionButton" value="Create Session" />
+    <input type="button" id="nextSseeionButton" value="Next Session" />
+  </menu>
+  <script>
+    var sessionList = [];
+    var currentSessionID = null;
+    var createSseeionButton = document.getElementById("createSseeionButton");
+    var nextSseeionButton = document.getElementById("nextSseeionButton");
+
+    createSseeionButton.addEventListener('click', function () {
+      CreateSSHSession(sessionList);
+    });
+    nextSseeionButton.addEventListener('click', function () {
+      console.log('call moveNextSession');
+      moveNextSession();
+    });
+    function moveNextSession() {
+      console.log('In moveNextSession');
+      console.log('  sessionList.length:' + sessionList.length);
+      if (currentSessionID < sessionList.length - 1) {
+        currentSessionID++;
+      } else {
+        currentSessionID = 0;
+      }
+      for (var i = 0; i < sessionList.length; i++) {
+        console.log('style:' + i);
+        if (currentSessionID !== i) {
+          document.getElementById("terminal-container" + i).style.zIndex = -1;
+        } else {
+          document.getElementById("terminal-container" + i).style.zIndex = 0;
+        }
+      }
+      console.log('Out moveNextSession');
+    };
+    function CreateSSHSession(sessionList) {
+      var session = {};
+      console.log('sessionList.length:' + sessionList.length);
+      if (sessionList.length == 0) {
+        session.id = 0;
+      } else {
+        session.id = sessionList[sessionList.length - 1].id + 1;
+      }
+      session.container = CreateTerminalContainer(session.id);
+      session.term = new Terminal({ cursorBlink: true });
+      Terminal.applyAddon(fit);
+      session.term.open(session.container);
+      session.term.fit();
+      sessionList.push(session);
+      currentSessionID = session.id;
+      CreateSSHCommunication();
+      return session;
+    };
+
+    function CreateTerminalContainer(id) {
+      var divElement = document.createElement("div");
+      divElement.setAttribute("id", "terminal-container" + id);
+      divElement.setAttribute("class", "terminal-container");
+      document.body.appendChild(divElement);
+      return divElement;
+    };
+
+    function CreateSSHCommunication() {
+      var socket = io.connect();
+      socket.on('connect', function () {
+        sessionList[currentSessionID].term.write('\r\n*** Connected to backend***\r\n');
+
+        // Browser -> Backend
+        sessionList[currentSessionID].term.on('data', function (data) {
+          console.log('data:' + currentSessionID);
+          socket.emit('data', data);
+        });
+
+        // Backend -> Browser
+        socket.on('data', function (data) {
+          console.log('data:' + currentSessionID);
+          sessionList[currentSessionID].term.write(data);
+        });
+
+        socket.on('disconnect', function () {
+          console.log('data:' + currentSessionID);
+          sessionList[currentSessionID].term.write('\r\n*** Disconnected from backend***\r\n');
+        });
+      });
+    }
+    window.addEventListener('load', function () {
+      CreateSSHSession(sessionList);
+      CreateSSHCommunication();
+    }, false);
+  </script>
+</body>
+
+</html>
